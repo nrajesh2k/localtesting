@@ -1,0 +1,80 @@
+
+<!DOCTYPE html>
+<body>
+<!-- <script
+    src="https://www.paypal.com/sdk/js?client-id=ARVzVeOPxjLGYWNYARLK5sNHq3OiLDeYziMHAkfgu29ZLNJvwnsHLJqor52Rwbn-U9NkZLODzAwmISgv&components=buttons"
+    data-namespace="paypal2">
+</script> -->
+<script src="https://www.paypal.com/sdk/js?client-id=AWbHFdCjNBbigfjfNRkttkcJhsBjm3tH9TNWKO1RhoMb4pu6x_evSmJetQ4fz0ZKCpjfwzhZM_JgvVqW&components=buttons,messages&locale=it_IT&currency=EUR&enable-funding=paylater,venmo&buyer-country=IT&disable-funding=card"></script>
+
+<!---  muru_ppcpuspartner@pp.com   ARVzVeOPxjLGYWNYARLK5sNHq3OiLDeYziMHAkfgu29ZLNJvwnsHLJqor52Rwbn-U9NkZLODzAwmISgv -->
+<!--- sg bnpl app --- "https://www.paypal.com/sdk/js?client-id=AWbHFdCjNBbigfjfNRkttkcJhsBjm3tH9TNWKO1RhoMb4pu6x_evSmJetQ4fz0ZKCpjfwzhZM_JgvVqW&components=buttons,messages&locale=en_US&currency=GBP&buyer-country=GB&enable-funding=paylater"></script>
+
+
+AUBNPL - Aa5oqdcQDzOxDfNNvb1hkU6MqK_29GRNnSo4oeAy0RkPllFL6kTwFt5unZXE9b_O1BQGH1eE6MOAclra
+
+ -->
+<div id="paypal-button" style="width: 500px"></div>
+<div
+    data-pp-message
+    data-pp-style-layout="text"
+    data-pp-style-logo-type="none"
+    data-pp-style-text-color="black"
+    data-pp-style-text-size="8"
+    data-pp-amount=ENTER_VALUE_HERE
+    data-pp-placement=payment>
+data-pp-buyercountry="IT">
+</div>
+<div
+    data-pp-message
+    data-pp-style-layout="text"
+    data-pp-style-text-color="black"
+    data-pp-style-logo-type="none"
+    data-pp-style-logo-position="left"
+data-pp-style-text-size="16"
+    data-pp-amount="160.00"
+    data-pp-placement="product"
+	data-pp-buyercountry="IT"
+    >
+</div>
+
+<div
+    data-pp-message
+    data-pp-style-layout="text"
+    data-pp-style-logo-type="none"
+    data-pp-style-text-color="black"
+    data-pp-style-text-size="10"
+    data-pp-amount=ENTER_VALUE_HERE
+    data-pp-placement=payment>
+</div>
+
+    <script>
+        paypal.Buttons({
+         //fundingSource: paypal.FUNDING.VENMO,
+            style: {
+                layout: 'vertical',   // horizontal | vertical
+                size:   'responsive',   // medium | large | responsive
+                shape:  'pill',         // pill | rect
+                color:  'gold',         // gold | blue | silver | black
+                label:  'pay',       // paypal  | checkout | buynow | pay | installment
+                tagline: false        // true | false
+            },
+            createOrder: function(data, actions) {
+                return actions.order.create({
+                currency: 'USD',
+                intent: 'capture',
+                purchase_units: [{
+                  amount: {
+                    value: '160.00'
+                  }
+                }]
+              });
+            },
+            onApprove: function(data, actions) {
+              return actions.order.capture().then(function(details) {
+                alert('Transaction completed -  ID ' + details.id);
+                });
+              }
+        }).render('#paypal-button');
+    </script>
+</body>
