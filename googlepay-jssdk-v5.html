@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Google Pay via PayPal JS SDK v5</title>
+
+<!--
+  1. Load PayPal JS SDK v5 with the googlepay component enabled.
+     - "components=googlepay" is required for window.paypal.Googlepay() to exist.
+     - currency should match your order's currency.
+-->
+<script
+  src="https://www.paypal.com/sdk/js?client-id=AXXuxTDRgqiFEGhWGPdhqL4JDvjRV4usj69mu43dJtWctzia07qCNrsUrmXcb6ajSCGHgF6zyozjjNrU&components=googlepay&currency=USD&buyer-country=US">
+</script>
+
+<!-- 2. Load Google's own Pay.js -->
+<script async src="https://pay.google.com/gp/p/js/pay.js"></script>
+</head>
+<body>
+
+<div id="google-pay-container"></div>
+
+<script>
+let paymentsClient = null;
+let googlePayConfig = null;
+
+/**
+ * Entry point: called once both PayPal SDK and Google Pay JS have loaded.
+ * If either script loads async, wire this to both onload events (or a
+ * Promise.all) instead of a bare window.onload.
+ */
+window.onload = async function () {
+  try {
+    // 3. Ask PayPal whether Google Pay is eligible for this
+    //    partner + merchant + buyer context, and get the Google Pay
+    //    config (allowedPaymentMethods, merchantInfo, apiVersion, etc.)
+    //    This is the SDK-side equivalent of calling
+    //    /v2/payments/find-eligible-methods on the server.
+    googlePayConfig = await window.paypal.Googlepay().config();
+
+    if (!googlePayConfig || !googlePayConfig.isEligible) {
+      console.warn('Google Pay not eligible for this partner/merchant.');
+      return; // Do not render the button
+    }
+
+    initGooglePaymentsClient();
+    await checkReadyToPayAndRenderButton();
+  } catch (err) {
+    console.error('Failed to load Google Pay config', err);
+  }
+};
+
+/**
+ * Create the Google PaymentsClient using PayPal-supplied config.
+ */
+function initGooglePaymentsClient() {
+  paymentsClient = new google.payments.api.PaymentsClient({
+    environment: 'TEST' // switch to 'PRODUCTION' when going live
+  });
+}
+
+/**
+ * Confirm the buyer's device/browser can pay, then render the button.
+ */
+async function checkReadyToPayAndRenderButton() {
+  const isReadyToPayRequest = {
+    apiVersion: googlePayConfig.apiVersion,
+    apiVersionMinor: googlePayConfig.apiVersionMinor,
+    allowedPaymentMethods: googlePayConfig.allowedPaymentMethods
+  };
+
+  const response = await paymentsClient.isReadyToPay(isReadyToPayRequest);
+
+  if (response.result) {
+    renderGooglePayButton();
+  }
+}
+
+/**
+ * Render the actual Google Pay button.
+ */
+function renderGooglePayButton() {
+  const button = paymentsClient.createButton({
+    onClick: onGooglePayButtonClicked,
+    allowedPaymentMethods: googlePayConfig.allowedPaymentMethods,
+    buttonColor: 'black',
+    buttonType: 'pay'
+  });
+
+  document.getElementById('google-pay-container').appendChild(button);
+}
+
+/**
+ * Button click handler — build the PaymentDataRequest and open the
+ * Google Pay sheet.
+ */
+async function onGooglePayButtonClicked() {
+  try {
+    // 4. Create a PayPal order on your server first (standard Orders v2
+    //    create-order call). Returns an order ID.
+    const orderId = await createOrderOnServer();
+
+    const paymentDataRequest = {
+      apiVersion: googlePayConfig.apiVersion,
+      apiVersionMinor: googlePayConfig.apiVersionMinor,
+      allowedPaymentMethods: googlePayConfig.allowedPaymentMethods,
+      merchantInfo: googlePayConfig.merchantInfo,
+      transactionInfo: {
+        countryCode: googlePayConfig.countryCode,
+        currencyCode: 'USD',
+        totalPriceStatus: 'FINAL',
+        totalPrice: '10.00' // set to your actual order total
+      }
+    };
+
+    const paymentData = await paymentsClient.loadPaymentData(paymentDataRequest);
+
+    // 5. Hand the Google Pay payment method data back to PayPal's SDK to
+    //    confirm the payment source on the order you just created.
+    await window.paypal.Googlepay().confirmOrder({
+      orderId: orderId,
+      paymentMethodData: paymentData.paymentMethodData
+    });
+
+    // 6. If confirmation succeeds, capture the order on your server.
+    await captureOrderOnServer(orderId);
+
+    console.log('Google Pay payment complete for order', orderId);
+  } catch (err) {
+    // Buyer canceled the Google Pay sheet, or an error occurred.
+    console.error('Google Pay payment failed or was canceled', err);
+  }
+}
+
+/**
+ * Replace with a real fetch() call to your backend's
+ * POST /v2/checkout/orders proxy endpoint.
+ */
+async function createOrderOnServer() {
+  const res = await fetch('/api/orders', { method: 'POST' });
+  const data = await res.json();
+  return data.id;
+}
+
+/**
+ * Replace with a real fetch() call to your backend's
+ * POST /v2/checkout/orders/{id}/capture proxy endpoint.
+ */
+async function captureOrderOnServer(orderId) {
+  await fetch(`/api/orders/${orderId}/capture`, { method: 'POST' });
+}
+</script>
+</body>
+</html>
